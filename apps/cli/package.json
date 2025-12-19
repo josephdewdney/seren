@@ -1,0 +1,11 @@
+{
+  "name": "@seren/cli",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "seren": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
