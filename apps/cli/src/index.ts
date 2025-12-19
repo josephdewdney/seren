@@ -4,7 +4,12 @@ const command = Bun.argv[2];
 const subcommand = Bun.argv[3];
 
 if (command === "init") {
-  await init();
+  const name = Bun.argv[3];
+  if (!name) {
+    console.log("Usage: seren init <name>");
+  } else {
+    await init(name);
+  }
 } else if (command === "add" && subcommand === "app") {
   const name = Bun.argv[4];
   if (!name) {
@@ -13,10 +18,12 @@ if (command === "init") {
     await addApp(name);
   }
 } else {
-  console.log("Usage: seren init | seren add app <name>");
+  console.log("Usage: seren init <name> | seren add app <name>");
 }
 
 async function addApp(name: string) {
+  const rootPkg = await Bun.file("package.json").json();
+  const scope = rootPkg.name;
   const dir = `apps/${name}`;
 
   await mkdir(`${dir}/src`, { recursive: true });
@@ -25,7 +32,7 @@ async function addApp(name: string) {
     `${dir}/package.json`,
     JSON.stringify(
       {
-        name: `@app/${name}`,
+        name: `@${scope}/${name}`,
         private: true,
         scripts: {
           dev: "vite",
@@ -183,12 +190,12 @@ export default defineConfig({
   console.log(`Created app: ${name}`);
 }
 
-async function init() {
+async function init(name: string) {
   await Bun.write(
     "package.json",
     JSON.stringify(
       {
-        name: "my-project",
+        name,
         private: true,
         workspaces: ["apps/*", "packages/*"],
       },
