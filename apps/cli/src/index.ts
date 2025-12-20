@@ -1,42 +1,47 @@
-#!/usr/bin/env bun
-import { mkdir } from "node:fs/promises";
+#!/usr/bin/env node
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
-const command = Bun.argv[2];
-const subcommand = Bun.argv[3];
+const args = process.argv.slice(2);
+const command = args[0];
+const subcommand = args[1];
 
 if (command === "init") {
-  const name = Bun.argv[3];
+  const name = args[1];
   if (!name) {
     console.log("Usage: seren init <name>");
+    process.exit(1);
   } else {
     await init(name);
   }
 } else if (command === "add" && subcommand === "app") {
-  const name = Bun.argv[4];
+  const name = args[2];
   if (!name) {
     console.log("Usage: seren add app <name>");
+    process.exit(1);
   } else {
     await addApp(name);
   }
 } else if (command === "add" && subcommand === "package") {
-  const name = Bun.argv[4];
+  const name = args[2];
   if (!name) {
     console.log("Usage: seren add package <name>");
+    process.exit(1);
   } else {
     await addPackage(name);
   }
 } else {
   console.log("Usage: seren init <name> | seren add app <name> | seren add package <name>");
+  process.exit(1);
 }
 
 async function addApp(name: string) {
-  const rootPkg = await Bun.file("package.json").json();
+  const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
   const scope = rootPkg.name;
   const dir = `apps/${name}`;
 
   await mkdir(`${dir}/src`, { recursive: true });
 
-  await Bun.write(
+  await writeFile(
     `${dir}/package.json`,
     JSON.stringify(
       {
@@ -65,7 +70,7 @@ async function addApp(name: string) {
     )
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/index.html`,
     `<!doctype html>
 <html lang="en">
@@ -82,7 +87,7 @@ async function addApp(name: string) {
 `
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/src/main.tsx`,
     `import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -91,7 +96,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 `
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/src/App.tsx`,
     `export function App() {
   return <h1>Hello from ${name}</h1>;
@@ -99,7 +104,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 `
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/vite.config.ts`,
     `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -110,7 +115,7 @@ export default defineConfig({
 `
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/tsconfig.json`,
     JSON.stringify(
       {
@@ -125,7 +130,7 @@ export default defineConfig({
     )
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/tsconfig.app.json`,
     JSON.stringify(
       {
@@ -161,7 +166,7 @@ export default defineConfig({
     )
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/tsconfig.node.json`,
     JSON.stringify(
       {
@@ -199,13 +204,13 @@ export default defineConfig({
 }
 
 async function addPackage(name: string) {
-  const rootPkg = await Bun.file("package.json").json();
+  const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
   const scope = rootPkg.name;
   const dir = `packages/${name}`;
 
   await mkdir(`${dir}/src`, { recursive: true });
 
-  await Bun.write(
+  await writeFile(
     `${dir}/package.json`,
     JSON.stringify(
       {
@@ -220,12 +225,12 @@ async function addPackage(name: string) {
     )
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/src/index.ts`,
     `export {};\n`
   );
 
-  await Bun.write(
+  await writeFile(
     `${dir}/tsconfig.json`,
     JSON.stringify(
       {
@@ -251,7 +256,7 @@ async function init(name: string) {
   await mkdir(`${name}/apps`, { recursive: true });
   await mkdir(`${name}/packages`, { recursive: true });
 
-  await Bun.write(
+  await writeFile(
     `${name}/package.json`,
     JSON.stringify(
       {
@@ -264,7 +269,7 @@ async function init(name: string) {
     )
   );
 
-  await Bun.write(
+  await writeFile(
     `${name}/.gitignore`,
     `.DS_Store
 node_modules
