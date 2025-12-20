@@ -404,4 +404,8 @@ dist
   );
 
   console.log(`Created monorepo: ${name}`);
+  console.log();
+  console.log("Next steps:");
+  console.log(`  cd ${name}`);
+  console.log("  bun install");
 }
