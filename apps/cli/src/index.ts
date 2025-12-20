@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 
@@ -402,6 +403,8 @@ node_modules
 dist
 `
   );
+
+  execSync(`git init ${name}`, { stdio: "ignore" });
 
   console.log(`Created monorepo: ${name}`);
   console.log();
