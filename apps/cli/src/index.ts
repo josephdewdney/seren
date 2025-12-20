@@ -17,8 +17,15 @@ if (command === "init") {
   } else {
     await addApp(name);
   }
+} else if (command === "add" && subcommand === "package") {
+  const name = Bun.argv[4];
+  if (!name) {
+    console.log("Usage: seren add package <name>");
+  } else {
+    await addPackage(name);
+  }
 } else {
-  console.log("Usage: seren init <name> | seren add app <name>");
+  console.log("Usage: seren init <name> | seren add app <name> | seren add package <name>");
 }
 
 async function addApp(name: string) {
@@ -188,6 +195,55 @@ export default defineConfig({
   );
 
   console.log(`Created app: ${name}`);
+}
+
+async function addPackage(name: string) {
+  const rootPkg = await Bun.file("package.json").json();
+  const scope = rootPkg.name;
+  const dir = `packages/${name}`;
+
+  await mkdir(`${dir}/src`, { recursive: true });
+
+  await Bun.write(
+    `${dir}/package.json`,
+    JSON.stringify(
+      {
+        name: `@${scope}/${name}`,
+        private: true,
+        exports: {
+          ".": "./src/index.ts",
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  await Bun.write(
+    `${dir}/src/index.ts`,
+    `export {};\n`
+  );
+
+  await Bun.write(
+    `${dir}/tsconfig.json`,
+    JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ES2022",
+          module: "ESNext",
+          moduleResolution: "bundler",
+          strict: true,
+          skipLibCheck: true,
+          noEmit: true,
+        },
+        include: ["src"],
+      },
+      null,
+      2
+    )
+  );
+
+  console.log(`Created package: ${name}`);
 }
 
 async function init(name: string) {
