@@ -248,8 +248,11 @@ async function addPackage(name: string) {
 }
 
 async function init(name: string) {
+  await mkdir(`${name}/apps`, { recursive: true });
+  await mkdir(`${name}/packages`, { recursive: true });
+
   await Bun.write(
-    "package.json",
+    `${name}/package.json`,
     JSON.stringify(
       {
         name,
@@ -261,15 +264,12 @@ async function init(name: string) {
     )
   );
 
-  await mkdir("apps", { recursive: true });
-  await mkdir("packages", { recursive: true });
-
   await Bun.write(
-    ".gitignore",
+    `${name}/.gitignore`,
     `.DS_Store
 node_modules
 `
   );
 
-  console.log("Created monorepo");
+  console.log(`Created monorepo: ${name}`);
 }
