@@ -1,9 +1,35 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline/promises";
 
 const args = process.argv.slice(2);
 const command = args[0];
 const subcommand = args[1];
+
+function getFlag(flag: string): string | undefined {
+  const index = args.findIndex((a) => a.startsWith(`--${flag}=`));
+  if (index !== -1) {
+    return args[index]!.split("=")[1]!;
+  }
+  const flagIndex = args.indexOf(`--${flag}`);
+  if (flagIndex !== -1 && args[flagIndex + 1]) {
+    return args[flagIndex + 1];
+  }
+  return undefined;
+}
+
+async function prompt(question: string, options: string[]): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  console.log(question);
+  options.forEach((opt, i) => console.log(`  ${i + 1}. ${opt}`));
+  const answer = await rl.question("Enter choice: ");
+  rl.close();
+  const index = parseInt(answer, 10) - 1;
+  if (index >= 0 && index < options.length) {
+    return options[index]!;
+  }
+  return options[0]!;
+}
 
 const HELP = `
 seren - A CLI for scaffolding monorepo projects
@@ -12,16 +38,21 @@ Usage:
   seren <command> [options]
 
 Commands:
-  init <name>         Create a new monorepo
-  add app <name>      Add a React + Vite app to the monorepo
-  add package <name>  Add a shared package to the monorepo
+  init <name>                     Create a new monorepo
+  add app <name> --framework <f>  Add an app (react or hono)
+  add package <name>              Add a shared package
+
+Frameworks:
+  react    Vite + React + TypeScript
+  hono     Hono + Node.js + TypeScript
 
 Options:
   -h, --help          Show this help message
 
 Examples:
   seren init my-project
-  seren add app web
+  seren add app web --framework react
+  seren add app api --framework hono
   seren add package utils
 `.trim();
 
@@ -38,11 +69,21 @@ if (command === "--help" || command === "-h" || !command) {
   }
 } else if (command === "add" && subcommand === "app") {
   const name = args[2];
-  if (!name) {
-    console.log("Usage: seren add app <name>");
+  if (!name || name.startsWith("--")) {
+    console.log("Usage: seren add app <name> --framework <react|hono>");
     process.exit(1);
+  }
+  let framework = getFlag("framework");
+  if (!framework) {
+    framework = await prompt("Select a framework:", ["react", "hono"]);
+  }
+  if (framework === "react") {
+    await addReactApp(name);
+  } else if (framework === "hono") {
+    await addHonoApp(name);
   } else {
-    await addApp(name);
+    console.log(`Unknown framework: ${framework}. Use 'react' or 'hono'.`);
+    process.exit(1);
   }
 } else if (command === "add" && subcommand === "package") {
   const name = args[2];
@@ -58,7 +99,7 @@ if (command === "--help" || command === "-h" || !command) {
   process.exit(1);
 }
 
-async function addApp(name: string) {
+async function addReactApp(name: string) {
   const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
   const scope = rootPkg.name;
   const dir = `apps/${name}`;
@@ -80,11 +121,10 @@ async function addApp(name: string) {
           "react-dom": "^19.2.0",
         },
         devDependencies: {
-          "@types/node": "^24.10.1",
+          [`@${scope}/tsconfig`]: "workspace:*",
           "@types/react": "^19.2.5",
           "@types/react-dom": "^19.2.3",
           "@vitejs/plugin-react": "^5.1.1",
-          globals: "^16.5.0",
           typescript: "~5.9.3",
           vite: "^7.2.4",
         },
@@ -143,11 +183,47 @@ export default defineConfig({
     `${dir}/tsconfig.json`,
     JSON.stringify(
       {
-        files: [],
-        references: [
-          { path: "./tsconfig.app.json" },
-          { path: "./tsconfig.node.json" },
-        ],
+        extends: `@${scope}/tsconfig/react`,
+        compilerOptions: {
+          types: ["vite/client"],
+        },
+        include: ["src", "vite.config.ts"],
+      },
+      null,
+      2
+    )
+  );
+
+  console.log(`Created React app: ${name}`);
+}
+
+async function addHonoApp(name: string) {
+  const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
+  const scope = rootPkg.name;
+  const dir = `apps/${name}`;
+
+  await mkdir(`${dir}/src`, { recursive: true });
+
+  await writeFile(
+    `${dir}/package.json`,
+    JSON.stringify(
+      {
+        name: `@${scope}/${name}`,
+        private: true,
+        scripts: {
+          dev: "node --experimental-strip-types --watch src/index.ts",
+          build: "tsc",
+          start: "node dist/index.js",
+        },
+        dependencies: {
+          hono: "^4.7.0",
+          "@hono/node-server": "^1.14.0",
+        },
+        devDependencies: {
+          [`@${scope}/tsconfig`]: "workspace:*",
+          "@types/node": "^22.10.2",
+          typescript: "~5.9.3",
+        },
       },
       null,
       2
@@ -155,33 +231,28 @@ export default defineConfig({
   );
 
   await writeFile(
-    `${dir}/tsconfig.app.json`,
+    `${dir}/src/index.ts`,
+    `import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.get("/", (c) => c.text("Hello from ${name}!"));
+
+serve({ fetch: app.fetch, port: 3000 }, (info) => {
+  console.log(\`Server running at http://localhost:\${info.port}\`);
+});
+`
+  );
+
+  await writeFile(
+    `${dir}/tsconfig.json`,
     JSON.stringify(
       {
+        extends: `@${scope}/tsconfig/node`,
         compilerOptions: {
-          tsBuildInfoFile: "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-          target: "ES2022",
-          useDefineForClassFields: true,
-          lib: ["ES2022", "DOM", "DOM.Iterable"],
-          module: "ESNext",
-          types: ["vite/client"],
-          skipLibCheck: true,
-
-          /* Bundler mode */
-          moduleResolution: "bundler",
-          allowImportingTsExtensions: true,
-          verbatimModuleSyntax: true,
-          moduleDetection: "force",
-          noEmit: true,
-          jsx: "react-jsx",
-
-          /* Linting */
-          strict: true,
-          noUnusedLocals: true,
-          noUnusedParameters: true,
-          erasableSyntaxOnly: true,
-          noFallthroughCasesInSwitch: true,
-          noUncheckedSideEffectImports: true,
+          outDir: "dist",
+          noEmit: false,
         },
         include: ["src"],
       },
@@ -190,41 +261,7 @@ export default defineConfig({
     )
   );
 
-  await writeFile(
-    `${dir}/tsconfig.node.json`,
-    JSON.stringify(
-      {
-        compilerOptions: {
-          tsBuildInfoFile: "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-          target: "ES2023",
-          lib: ["ES2023"],
-          module: "ESNext",
-          types: ["node"],
-          skipLibCheck: true,
-
-          /* Bundler mode */
-          moduleResolution: "bundler",
-          allowImportingTsExtensions: true,
-          verbatimModuleSyntax: true,
-          moduleDetection: "force",
-          noEmit: true,
-
-          /* Linting */
-          strict: true,
-          noUnusedLocals: true,
-          noUnusedParameters: true,
-          erasableSyntaxOnly: true,
-          noFallthroughCasesInSwitch: true,
-          noUncheckedSideEffectImports: true,
-        },
-        include: ["vite.config.ts"],
-      },
-      null,
-      2
-    )
-  );
-
-  console.log(`Created app: ${name}`);
+  console.log(`Created Hono app: ${name}`);
 }
 
 async function addPackage(name: string) {
@@ -243,6 +280,10 @@ async function addPackage(name: string) {
         exports: {
           ".": "./src/index.ts",
         },
+        devDependencies: {
+          [`@${scope}/tsconfig`]: "workspace:*",
+          typescript: "~5.9.3",
+        },
       },
       null,
       2
@@ -258,14 +299,7 @@ async function addPackage(name: string) {
     `${dir}/tsconfig.json`,
     JSON.stringify(
       {
-        compilerOptions: {
-          target: "ES2022",
-          module: "ESNext",
-          moduleResolution: "bundler",
-          strict: true,
-          skipLibCheck: true,
-          noEmit: true,
-        },
+        extends: `@${scope}/tsconfig/base`,
         include: ["src"],
       },
       null,
@@ -278,7 +312,7 @@ async function addPackage(name: string) {
 
 async function init(name: string) {
   await mkdir(`${name}/apps`, { recursive: true });
-  await mkdir(`${name}/packages`, { recursive: true });
+  await mkdir(`${name}/packages/tsconfig`, { recursive: true });
 
   await writeFile(
     `${name}/package.json`,
@@ -294,9 +328,78 @@ async function init(name: string) {
   );
 
   await writeFile(
+    `${name}/packages/tsconfig/package.json`,
+    JSON.stringify(
+      {
+        name: `@${name}/tsconfig`,
+        private: true,
+        exports: {
+          "./base": "./base.json",
+          "./react": "./react.json",
+          "./node": "./node.json",
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  await writeFile(
+    `${name}/packages/tsconfig/base.json`,
+    JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ES2022",
+          module: "ESNext",
+          moduleResolution: "bundler",
+          strict: true,
+          skipLibCheck: true,
+          noEmit: true,
+          verbatimModuleSyntax: true,
+          noFallthroughCasesInSwitch: true,
+          noUncheckedSideEffectImports: true,
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  await writeFile(
+    `${name}/packages/tsconfig/react.json`,
+    JSON.stringify(
+      {
+        extends: "./base.json",
+        compilerOptions: {
+          lib: ["ES2022", "DOM", "DOM.Iterable"],
+          jsx: "react-jsx",
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  await writeFile(
+    `${name}/packages/tsconfig/node.json`,
+    JSON.stringify(
+      {
+        extends: "./base.json",
+        compilerOptions: {
+          lib: ["ES2023"],
+          types: ["node"],
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  await writeFile(
     `${name}/.gitignore`,
     `.DS_Store
 node_modules
+dist
 `
   );
 
