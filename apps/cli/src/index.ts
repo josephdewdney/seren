@@ -5,7 +5,30 @@ const args = process.argv.slice(2);
 const command = args[0];
 const subcommand = args[1];
 
-if (command === "init") {
+const HELP = `
+seren - A CLI for scaffolding monorepo projects
+
+Usage:
+  seren <command> [options]
+
+Commands:
+  init <name>         Create a new monorepo
+  add app <name>      Add a React + Vite app to the monorepo
+  add package <name>  Add a shared package to the monorepo
+
+Options:
+  -h, --help          Show this help message
+
+Examples:
+  seren init my-project
+  seren add app web
+  seren add package utils
+`.trim();
+
+if (command === "--help" || command === "-h" || !command) {
+  console.log(HELP);
+  process.exit(0);
+} else if (command === "init") {
   const name = args[1];
   if (!name) {
     console.log("Usage: seren init <name>");
@@ -30,7 +53,8 @@ if (command === "init") {
     await addPackage(name);
   }
 } else {
-  console.log("Usage: seren init <name> | seren add app <name> | seren add package <name>");
+  console.log(`Unknown command: ${command}\n`);
+  console.log(HELP);
   process.exit(1);
 }
 
