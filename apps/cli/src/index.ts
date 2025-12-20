@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { mkdir } from "node:fs/promises";
 
 const command = Bun.argv[2];
