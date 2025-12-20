@@ -8,13 +8,22 @@ const command = args[0];
 const subcommand = args[1];
 
 function getFlag(flag: string): string | undefined {
-  const index = args.findIndex((a) => a.startsWith(`--${flag}=`));
-  if (index !== -1) {
-    return args[index]!.split("=")[1]!;
+  // --flag=value
+  const eqIndex = args.findIndex((a) => a.startsWith(`--${flag}=`));
+  if (eqIndex !== -1) {
+    return args[eqIndex]!.split("=")[1]!;
   }
-  const flagIndex = args.indexOf(`--${flag}`);
-  if (flagIndex !== -1 && args[flagIndex + 1]) {
-    return args[flagIndex + 1];
+  // --flag value
+  const longIndex = args.indexOf(`--${flag}`);
+  if (longIndex !== -1 && args[longIndex + 1]) {
+    return args[longIndex + 1];
+  }
+  // -f value (single char flags)
+  if (flag.length === 1) {
+    const shortIndex = args.indexOf(`-${flag}`);
+    if (shortIndex !== -1 && args[shortIndex + 1]) {
+      return args[shortIndex + 1];
+    }
   }
   return undefined;
 }
@@ -70,11 +79,11 @@ if (command === "--help" || command === "-h" || !command) {
   }
 } else if (command === "add" && subcommand === "app") {
   const name = args[2];
-  if (!name || name.startsWith("--")) {
+  if (!name || name.startsWith("-")) {
     console.log("Usage: seren add app <name> --framework <react|hono>");
     process.exit(1);
   }
-  let framework = getFlag("framework");
+  let framework = getFlag("framework") ?? getFlag("f");
   if (!framework) {
     framework = await prompt("Select a framework:", ["react", "hono"]);
   }
