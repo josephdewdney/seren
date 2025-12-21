@@ -224,6 +224,7 @@ async function addHonoApp(name: string) {
       {
         name: `@${scope}/${name}`,
         private: true,
+        type: "module",
         scripts: {
           dev: "node --experimental-strip-types --watch src/index.ts",
           build: "tsc",
