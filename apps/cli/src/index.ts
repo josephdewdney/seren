@@ -375,14 +375,24 @@ async function init(name: string) {
     JSON.stringify(
       {
         compilerOptions: {
+          // Type Checking
+          allowUnreachableCode: false,
+          allowUnusedLabels: false,
+          exactOptionalPropertyTypes: true,
+          noFallthroughCasesInSwitch: true,
+          noImplicitOverride: true,
+          noImplicitReturns: true,
+          noUncheckedIndexedAccess: true,
+          noUnusedLocals: true,
+          noUnusedParameters: true,
+          strict: true,
+
           target: "ES2022",
           module: "ESNext",
           moduleResolution: "bundler",
-          strict: true,
           skipLibCheck: true,
           noEmit: true,
           verbatimModuleSyntax: true,
-          noFallthroughCasesInSwitch: true,
           noUncheckedSideEffectImports: true,
         },
       },
