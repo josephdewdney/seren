@@ -62,6 +62,7 @@ Frameworks:
   hono     Hono + Node.js + TypeScript
 
 Options:
+  --tailwind          Add Tailwind CSS (React only)
   -h, --help          Show this help message
   -v, --version       Show version
 
@@ -69,6 +70,7 @@ Examples:
   seren init
   seren init my-project
   seren add app web --framework react
+  seren add app web --framework react --tailwind
   seren add app api --framework hono
   seren add package utils
 `.trim();
@@ -93,7 +95,8 @@ if (command === "--help" || command === "-h" || !command) {
     framework = await prompt("Select a framework:", ["react", "hono"]);
   }
   if (framework === "react") {
-    await addReactApp(name);
+    const tailwind = args.includes("--tailwind");
+    await addReactApp(name, tailwind);
   } else if (framework === "hono") {
     await addHonoApp(name);
   } else {
@@ -114,12 +117,26 @@ if (command === "--help" || command === "-h" || !command) {
   process.exit(1);
 }
 
-async function addReactApp(name: string) {
+async function addReactApp(name: string, tailwind: boolean) {
   const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
   const scope = rootPkg.name;
   const dir = `apps/${name}`;
 
   await mkdir(`${dir}/src`, { recursive: true });
+
+  const devDependencies: Record<string, string> = {
+    [`@${scope}/tsconfig`]: "*",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    typescript: "~5.9.3",
+    vite: "^7.2.4",
+  };
+
+  if (tailwind) {
+    devDependencies["tailwindcss"] = "^4.1.10";
+    devDependencies["@tailwindcss/vite"] = "^4.1.10";
+  }
 
   await writeFile(
     `${dir}/package.json`,
@@ -135,14 +152,7 @@ async function addReactApp(name: string) {
           react: "^19.2.0",
           "react-dom": "^19.2.0",
         },
-        devDependencies: {
-          [`@${scope}/tsconfig`]: "*",
-          "@types/react": "^19.2.5",
-          "@types/react-dom": "^19.2.3",
-          "@vitejs/plugin-react": "^5.1.1",
-          typescript: "~5.9.3",
-          vite: "^7.2.4",
-        },
+        devDependencies,
       },
       null,
       2
@@ -170,10 +180,14 @@ async function addReactApp(name: string) {
     `${dir}/src/main.tsx`,
     `import { createRoot } from "react-dom/client";
 import { App } from "./App";
-
+${tailwind ? `import "./index.css";\n` : ""}
 createRoot(document.getElementById("root")!).render(<App />);
 `
   );
+
+  if (tailwind) {
+    await writeFile(`${dir}/src/index.css`, `@import "tailwindcss";\n`);
+  }
 
   await writeFile(
     `${dir}/src/App.tsx`,
@@ -187,9 +201,9 @@ createRoot(document.getElementById("root")!).render(<App />);
     `${dir}/vite.config.ts`,
     `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-
+${tailwind ? `import tailwindcss from "@tailwindcss/vite";\n` : ""}
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react()${tailwind ? ", tailwindcss()" : ""}],
 });
 `
   );
