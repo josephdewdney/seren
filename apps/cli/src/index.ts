@@ -2,6 +2,7 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const args = process.argv.slice(2);
@@ -329,19 +330,28 @@ async function addPackage(name: string) {
 }
 
 async function init(name: string) {
-  if (existsSync(name)) {
+  const isCurrentDir = name === ".";
+  const prefix = isCurrentDir ? "" : `${name}/`;
+  const pkgName = isCurrentDir ? basename(resolve(".")) : name;
+
+  if (!isCurrentDir && existsSync(name)) {
     console.log(`Error: Directory "${name}" already exists.`);
     process.exit(1);
   }
 
-  await mkdir(`${name}/apps`, { recursive: true });
-  await mkdir(`${name}/packages/tsconfig`, { recursive: true });
+  if (existsSync(`${prefix}package.json`)) {
+    console.log("Error: package.json already exists in this directory.");
+    process.exit(1);
+  }
+
+  await mkdir(`${prefix}apps`, { recursive: true });
+  await mkdir(`${prefix}packages/tsconfig`, { recursive: true });
 
   await writeFile(
-    `${name}/package.json`,
+    `${prefix}package.json`,
     JSON.stringify(
       {
-        name,
+        name: pkgName,
         private: true,
         workspaces: ["apps/*", "packages/*"],
       },
@@ -351,10 +361,10 @@ async function init(name: string) {
   );
 
   await writeFile(
-    `${name}/packages/tsconfig/package.json`,
+    `${prefix}packages/tsconfig/package.json`,
     JSON.stringify(
       {
-        name: `@${name}/tsconfig`,
+        name: `@${pkgName}/tsconfig`,
         private: true,
         exports: {
           "./base": "./base.json",
@@ -368,7 +378,7 @@ async function init(name: string) {
   );
 
   await writeFile(
-    `${name}/packages/tsconfig/base.json`,
+    `${prefix}packages/tsconfig/base.json`,
     JSON.stringify(
       {
         compilerOptions: {
@@ -389,7 +399,7 @@ async function init(name: string) {
   );
 
   await writeFile(
-    `${name}/packages/tsconfig/react.json`,
+    `${prefix}packages/tsconfig/react.json`,
     JSON.stringify(
       {
         extends: "./base.json",
@@ -404,7 +414,7 @@ async function init(name: string) {
   );
 
   await writeFile(
-    `${name}/packages/tsconfig/node.json`,
+    `${prefix}packages/tsconfig/node.json`,
     JSON.stringify(
       {
         extends: "./base.json",
@@ -419,18 +429,20 @@ async function init(name: string) {
   );
 
   await writeFile(
-    `${name}/.gitignore`,
+    `${prefix}.gitignore`,
     `.DS_Store
 node_modules
 dist
 `
   );
 
-  execSync(`git init ${name}`, { stdio: "ignore" });
+  execSync(`git init ${isCurrentDir ? "." : name}`, { stdio: "ignore" });
 
-  console.log(`${green("✓")} Created monorepo: ${name}`);
+  console.log(`${green("✓")} Created monorepo: ${pkgName}`);
   console.log();
   console.log("Next steps:");
-  console.log(`  cd ${name}`);
+  if (!isCurrentDir) {
+    console.log(`  cd ${name}`);
+  }
   console.log("  npm install");
 }
