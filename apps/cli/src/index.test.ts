@@ -1,8 +1,9 @@
 import { execSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
-import { test, expect, afterEach } from "bun:test";
+import { test, afterEach } from "node:test";
+import assert from "node:assert";
 
-const cli = `node --experimental-strip-types ${import.meta.dir}/index.ts`;
+const cli = `node --experimental-strip-types ${import.meta.dirname}/index.ts`;
 const testDir = "/tmp/seren-test";
 
 afterEach(() => {
@@ -13,14 +14,14 @@ afterEach(() => {
 
 test("init creates a monorepo", () => {
   execSync(`${cli} init ${testDir}`);
-  expect(existsSync(testDir)).toBe(true);
-  expect(existsSync(`${testDir}/package.json`)).toBe(true);
-  expect(existsSync(`${testDir}/apps`)).toBe(true);
-  expect(existsSync(`${testDir}/packages/tsconfig`)).toBe(true);
-  expect(existsSync(`${testDir}/.git`)).toBe(true);
+  assert.strictEqual(existsSync(testDir), true);
+  assert.strictEqual(existsSync(`${testDir}/package.json`), true);
+  assert.strictEqual(existsSync(`${testDir}/apps`), true);
+  assert.strictEqual(existsSync(`${testDir}/packages/tsconfig`), true);
+  assert.strictEqual(existsSync(`${testDir}/.git`), true);
 });
 
 test("init fails if directory exists", () => {
   execSync(`mkdir -p ${testDir}`);
-  expect(() => execSync(`${cli} init ${testDir}`)).toThrow();
+  assert.throws(() => execSync(`${cli} init ${testDir}`));
 });

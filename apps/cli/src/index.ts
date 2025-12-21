@@ -430,5 +430,5 @@ dist
   console.log();
   console.log("Next steps:");
   console.log(`  cd ${name}`);
-  console.log("  bun install");
+  console.log("  npm install");
 }
