@@ -136,7 +136,7 @@ async function addReactApp(name: string) {
           "react-dom": "^19.2.0",
         },
         devDependencies: {
-          [`@${scope}/tsconfig`]: "workspace:*",
+          [`@${scope}/tsconfig`]: "*",
           "@types/react": "^19.2.5",
           "@types/react-dom": "^19.2.3",
           "@vitejs/plugin-react": "^5.1.1",
@@ -236,7 +236,7 @@ async function addHonoApp(name: string) {
           "@hono/node-server": "^1.14.0",
         },
         devDependencies: {
-          [`@${scope}/tsconfig`]: "workspace:*",
+          [`@${scope}/tsconfig`]: "*",
           "@types/node": "^22.10.2",
           typescript: "~5.9.3",
         },
@@ -297,7 +297,7 @@ async function addPackage(name: string) {
           ".": "./src/index.ts",
         },
         devDependencies: {
-          [`@${scope}/tsconfig`]: "workspace:*",
+          [`@${scope}/tsconfig`]: "*",
           typescript: "~5.9.3",
         },
       },
