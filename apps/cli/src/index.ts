@@ -10,6 +10,7 @@ const command = args[0];
 const subcommand = args[1];
 
 const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
+const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
 
 function getFlag(flag: string): string | undefined {
   // --flag=value
@@ -336,7 +337,7 @@ async function init(name: string) {
   }
 
   if (!isCurrentDir && existsSync(name)) {
-    console.log(`Error: Directory "${name}" already exists but is not a monorepo.`);
+    console.log(`${red("✗")} Directory "${name}" already exists but is not a monorepo.`);
     process.exit(1);
   }
 
