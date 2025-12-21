@@ -21,7 +21,8 @@ test("init creates a monorepo", () => {
   assert.strictEqual(existsSync(`${testDir}/.git`), true);
 });
 
-test("init fails if directory exists", () => {
-  execSync(`mkdir -p ${testDir}`);
-  assert.throws(() => execSync(`${cli} init ${testDir}`));
+test("init is idempotent", () => {
+  execSync(`${cli} init ${testDir}`);
+  // Running again should succeed (not throw)
+  execSync(`${cli} init ${testDir}`);
 });

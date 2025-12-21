@@ -334,13 +334,13 @@ async function init(name: string) {
   const prefix = isCurrentDir ? "" : `${name}/`;
   const pkgName = isCurrentDir ? basename(resolve(".")) : name;
 
-  if (!isCurrentDir && existsSync(name)) {
-    console.log(`Error: Directory "${name}" already exists.`);
-    process.exit(1);
+  if (existsSync(`${prefix}package.json`)) {
+    console.log(`${green("✓")} Already a monorepo: ${pkgName}`);
+    process.exit(0);
   }
 
-  if (existsSync(`${prefix}package.json`)) {
-    console.log("Error: package.json already exists in this directory.");
+  if (!isCurrentDir && existsSync(name)) {
+    console.log(`Error: Directory "${name}" already exists but is not a monorepo.`);
     process.exit(1);
   }
 
