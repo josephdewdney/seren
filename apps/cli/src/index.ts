@@ -8,6 +8,8 @@ const args = process.argv.slice(2);
 const command = args[0];
 const subcommand = args[1];
 
+const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
+
 function getFlag(flag: string): string | undefined {
   // --flag=value
   const eqIndex = args.findIndex((a) => a.startsWith(`--${flag}=`));
@@ -209,7 +211,7 @@ export default defineConfig({
     )
   );
 
-  console.log(`Created React app: ${name}`);
+  console.log(`${green("✓")} Created React app: ${name}`);
 }
 
 async function addHonoApp(name: string) {
@@ -277,7 +279,7 @@ serve({ fetch: app.fetch, port: 3000 }, (info) => {
     )
   );
 
-  console.log(`Created Hono app: ${name}`);
+  console.log(`${green("✓")} Created Hono app: ${name}`);
 }
 
 async function addPackage(name: string) {
@@ -323,7 +325,7 @@ async function addPackage(name: string) {
     )
   );
 
-  console.log(`Created package: ${name}`);
+  console.log(`${green("✓")} Created package: ${name}`);
 }
 
 async function init(name: string) {
@@ -426,7 +428,7 @@ dist
 
   execSync(`git init ${name}`, { stdio: "ignore" });
 
-  console.log(`Created monorepo: ${name}`);
+  console.log(`${green("✓")} Created monorepo: ${name}`);
   console.log();
   console.log("Next steps:");
   console.log(`  cd ${name}`);
