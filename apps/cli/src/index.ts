@@ -58,6 +58,7 @@ Frameworks:
 
 Options:
   -h, --help          Show this help message
+  -v, --version       Show version
 
 Examples:
   seren init my-project
@@ -68,6 +69,9 @@ Examples:
 
 if (command === "--help" || command === "-h" || !command) {
   console.log(HELP);
+  process.exit(0);
+} else if (command === "--version" || command === "-v") {
+  console.log("0.0.1");
   process.exit(0);
 } else if (command === "init") {
   const name = args[1];
