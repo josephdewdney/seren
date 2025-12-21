@@ -52,7 +52,7 @@ Usage:
   seren <command> [options]
 
 Commands:
-  init [name]                     Create a new monorepo (defaults to current directory)
+  init [dir]                      Create a new monorepo (defaults to current directory)
   add app <name> --framework <f>  Add an app (react or hono)
   add package <name>              Add a shared package
 
@@ -328,7 +328,7 @@ async function addPackage(name: string) {
 async function init(name: string) {
   const isCurrentDir = name === ".";
   const prefix = isCurrentDir ? "" : `${name}/`;
-  const pkgName = isCurrentDir ? basename(resolve(".")) : name;
+  const pkgName = isCurrentDir ? basename(resolve(".")) : basename(name);
 
   if (existsSync(`${prefix}package.json`)) {
     console.log(`${green("✓")} Already a monorepo: ${pkgName}`);
