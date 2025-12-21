@@ -21,14 +21,21 @@ test("init creates a monorepo", () => {
   assert.strictEqual(existsSync(`${testDir}/.git`), true);
 });
 
-test("init is idempotent", () => {
-  execSync(`${cli} init ${testDir}`);
-  // Running again should succeed (not throw)
-  execSync(`${cli} init ${testDir}`);
+test("init fails if directory is not empty", () => {
+  execSync(`mkdir -p ${testDir}`);
+  execSync(`touch ${testDir}/file.txt`);
+  assert.throws(() => execSync(`${cli} init ${testDir}`));
 });
 
 test("init with nested path uses directory name as package name", () => {
   execSync(`${cli} init ${testDir}/nested/my-app`);
   const pkg = JSON.parse(readFileSync(`${testDir}/nested/my-app/package.json`, "utf-8"));
   assert.strictEqual(pkg.name, "my-app");
+});
+
+test("init in current directory uses directory name as package name", () => {
+  execSync(`mkdir -p ${testDir}`);
+  execSync(`${cli} init .`, { cwd: testDir });
+  const pkg = JSON.parse(readFileSync(`${testDir}/package.json`, "utf-8"));
+  assert.strictEqual(pkg.name, "seren-test");
 });

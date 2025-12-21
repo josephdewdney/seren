@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -331,13 +331,9 @@ async function init(name: string) {
   const prefix = isCurrentDir ? "" : `${name}/`;
   const pkgName = isCurrentDir ? basename(resolve(".")) : basename(name);
 
-  if (existsSync(`${prefix}package.json`)) {
-    console.log(`${green("✓")} Already a monorepo: ${pkgName}`);
-    process.exit(0);
-  }
-
-  if (!isCurrentDir && existsSync(name)) {
-    console.log(`${red("✗")} Directory "${name}" already exists but is not a monorepo.`);
+  const targetDir = isCurrentDir ? "." : name;
+  if (existsSync(targetDir) && readdirSync(targetDir).length > 0) {
+    console.log(`${red("✗")} Directory is not empty. Use an empty directory.`);
     process.exit(1);
   }
 
