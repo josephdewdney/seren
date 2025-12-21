@@ -52,7 +52,7 @@ Usage:
   seren <command> [options]
 
 Commands:
-  init <name>                     Create a new monorepo
+  init [name]                     Create a new monorepo (defaults to current directory)
   add app <name> --framework <f>  Add an app (react or hono)
   add package <name>              Add a shared package
 
@@ -65,6 +65,7 @@ Options:
   -v, --version       Show version
 
 Examples:
+  seren init
   seren init my-project
   seren add app web --framework react
   seren add app api --framework hono
@@ -78,13 +79,8 @@ if (command === "--help" || command === "-h" || !command) {
   console.log("0.0.1");
   process.exit(0);
 } else if (command === "init") {
-  const name = args[1];
-  if (!name) {
-    console.log("Usage: seren init <name>");
-    process.exit(1);
-  } else {
-    await init(name);
-  }
+  const name = args[1] ?? ".";
+  await init(name);
 } else if (command === "add" && subcommand === "app") {
   const name = args[2];
   if (!name || name.startsWith("-")) {
