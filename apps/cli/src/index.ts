@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 
@@ -326,6 +327,11 @@ async function addPackage(name: string) {
 }
 
 async function init(name: string) {
+  if (existsSync(name)) {
+    console.log(`Error: Directory "${name}" already exists.`);
+    process.exit(1);
+  }
+
   await mkdir(`${name}/apps`, { recursive: true });
   await mkdir(`${name}/packages/tsconfig`, { recursive: true });
 
