@@ -429,7 +429,12 @@ dist
 `
   );
 
-  execSync(`git init ${isCurrentDir ? "." : name}`, { stdio: "ignore" });
+  try {
+    execSync(`git init ${isCurrentDir ? "." : name}`, { stdio: "ignore" });
+  } catch {
+    console.log(`${red("✗")} Failed to initialize git repository. Is git installed?`);
+    process.exit(1);
+  }
 
   console.log(`${green("✓")} Created monorepo: ${pkgName}`);
   console.log();
