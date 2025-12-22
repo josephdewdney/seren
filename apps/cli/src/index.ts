@@ -55,7 +55,7 @@ Usage:
 Commands:
   init [dir]                      Create a new monorepo (defaults to current directory)
   add app <name> --framework <f>  Add an app (react or hono)
-  add package <name>              Add a shared package
+  add package <name>              Add a shared package (use "db" for Drizzle + Neon)
 
 Frameworks:
   react    Vite + React + TypeScript
@@ -73,6 +73,7 @@ Examples:
   seren add app web --framework react --tailwind
   seren add app api --framework hono
   seren add package utils
+  seren add package db
 `.trim();
 
 if (command === "--help" || command === "-h" || !command) {
