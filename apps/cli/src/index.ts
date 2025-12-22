@@ -241,7 +241,7 @@ async function addHonoApp(name: string) {
         private: true,
         type: "module",
         scripts: {
-          dev: "node --experimental-strip-types --watch src/index.ts",
+          dev: "tsx watch src/index.ts",
           build: "tsc",
           start: "node dist/index.js",
         },
@@ -252,6 +252,7 @@ async function addHonoApp(name: string) {
         devDependencies: {
           [`@${scope}/tsconfig`]: "*",
           "@types/node": "^22.10.2",
+          tsx: "^4.19.0",
           typescript: "~5.9.3",
         },
       },
