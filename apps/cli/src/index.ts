@@ -125,20 +125,6 @@ async function addReactApp(name: string, tailwind: boolean) {
 
   await mkdir(`${dir}/src`, { recursive: true });
 
-  const devDependencies: Record<string, string> = {
-    [`@${scope}/tsconfig`]: "*",
-    "@types/react": "^19.2.5",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
-    typescript: "~5.9.3",
-    vite: "^7.2.4",
-  };
-
-  if (tailwind) {
-    devDependencies["tailwindcss"] = "^4.1.10";
-    devDependencies["@tailwindcss/vite"] = "^4.1.10";
-  }
-
   await writeFile(
     `${dir}/package.json`,
     JSON.stringify(
@@ -149,16 +135,21 @@ async function addReactApp(name: string, tailwind: boolean) {
           dev: "vite",
           build: "vite build",
         },
-        dependencies: {
-          react: "^19.2.0",
-          "react-dom": "^19.2.0",
+        devDependencies: {
+          [`@${scope}/tsconfig`]: "*",
         },
-        devDependencies,
       },
       null,
       2
     )
   );
+
+  execSync("npm i react react-dom", { cwd: dir, stdio: "inherit" });
+  execSync("npm i -D @types/react @types/react-dom @vitejs/plugin-react typescript vite", { cwd: dir, stdio: "inherit" });
+
+  if (tailwind) {
+    execSync("npm i -D tailwindcss @tailwindcss/vite", { cwd: dir, stdio: "inherit" });
+  }
 
   await writeFile(
     `${dir}/index.html`,
@@ -246,21 +237,17 @@ async function addHonoApp(name: string) {
           build: "tsc",
           start: "node dist/index.js",
         },
-        dependencies: {
-          hono: "^4.7.0",
-          "@hono/node-server": "^1.14.0",
-        },
         devDependencies: {
           [`@${scope}/tsconfig`]: "*",
-          "@types/node": "^22.10.2",
-          tsx: "^4.19.0",
-          typescript: "~5.9.3",
         },
       },
       null,
       2
     )
   );
+
+  execSync("npm i hono @hono/node-server", { cwd: dir, stdio: "inherit" });
+  execSync("npm i -D @types/node tsx typescript", { cwd: dir, stdio: "inherit" });
 
   await writeFile(
     `${dir}/src/index.ts`,
