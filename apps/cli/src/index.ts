@@ -125,6 +125,20 @@ async function addReactApp(name: string, tailwind: boolean) {
 
   await mkdir(`${dir}/src`, { recursive: true });
 
+  const devDependencies: Record<string, string> = {
+    [`@${scope}/tsconfig`]: "*",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    typescript: "^5",
+    vite: "^7",
+  };
+
+  if (tailwind) {
+    devDependencies["tailwindcss"] = "^4";
+    devDependencies["@tailwindcss/vite"] = "^4";
+  }
+
   await writeFile(
     `${dir}/package.json`,
     JSON.stringify(
@@ -135,21 +149,16 @@ async function addReactApp(name: string, tailwind: boolean) {
           dev: "vite",
           build: "vite build",
         },
-        devDependencies: {
-          [`@${scope}/tsconfig`]: "*",
+        dependencies: {
+          react: "^19",
+          "react-dom": "^19",
         },
+        devDependencies,
       },
       null,
       2
     )
   );
-
-  execSync("npm i react react-dom", { cwd: dir, stdio: "inherit" });
-  execSync("npm i -D @types/react @types/react-dom @vitejs/plugin-react typescript vite", { cwd: dir, stdio: "inherit" });
-
-  if (tailwind) {
-    execSync("npm i -D tailwindcss @tailwindcss/vite", { cwd: dir, stdio: "inherit" });
-  }
 
   await writeFile(
     `${dir}/index.html`,
@@ -215,6 +224,8 @@ export default defineConfig({
     )
   );
 
+  execSync("npm install", { stdio: "inherit" });
+
   console.log(`${green("✓")} Created React app: ${name}`);
 }
 
@@ -237,17 +248,21 @@ async function addHonoApp(name: string) {
           build: "tsc",
           start: "node dist/index.js",
         },
+        dependencies: {
+          hono: "^4",
+          "@hono/node-server": "^1",
+        },
         devDependencies: {
           [`@${scope}/tsconfig`]: "*",
+          "@types/node": "^22",
+          tsx: "^4",
+          typescript: "^5",
         },
       },
       null,
       2
     )
   );
-
-  execSync("npm i hono @hono/node-server", { cwd: dir, stdio: "inherit" });
-  execSync("npm i -D @types/node tsx typescript", { cwd: dir, stdio: "inherit" });
 
   await writeFile(
     `${dir}/src/index.ts`,
@@ -279,6 +294,8 @@ serve({ fetch: app.fetch, port: 3000 }, (info) => {
       2
     )
   );
+
+  execSync("npm install", { stdio: "inherit" });
 
   console.log(`${green("✓")} Created Hono app: ${name}`);
 }
@@ -340,27 +357,17 @@ async function addDbPackage() {
 
   await mkdir(`${dir}/src`, { recursive: true });
 
-  await writeFile(
-    `${dir}/package.json`,
-    JSON.stringify(
-      {
-        name: `@${scope}/db`,
-        private: true,
-        exports: {
-          ".": "./src/index.ts",
-        },
-        devDependencies: {
-          [`@${scope}/tsconfig`]: "*",
-        },
-      },
-      null,
-      2
-    )
-  );
+  const dependencies: Record<string, string> = {};
+  const devDependencies: Record<string, string> = {
+    [`@${scope}/tsconfig`]: "*",
+  };
 
   // Step 1 - Install @neondatabase/serverless package
-  execSync("npm i drizzle-orm @neondatabase/serverless dotenv", { cwd: dir, stdio: "inherit" });
-  execSync("npm i -D drizzle-kit tsx", { cwd: dir, stdio: "inherit" });
+  dependencies["drizzle-orm"] = "^0.38";
+  dependencies["@neondatabase/serverless"] = "^0.10";
+  dependencies["dotenv"] = "^16";
+  devDependencies["drizzle-kit"] = "^0.30";
+  devDependencies["tsx"] = "^4";
 
   // Step 2 - Setup connection variables
   await writeFile(`${dir}/.env`, `DATABASE_URL=\n`);
@@ -407,6 +414,25 @@ export default defineConfig({
       2
     )
   );
+
+  // Write package.json and install
+  await writeFile(
+    `${dir}/package.json`,
+    JSON.stringify(
+      {
+        name: `@${scope}/db`,
+        private: true,
+        exports: {
+          ".": "./src/index.ts",
+        },
+        dependencies,
+        devDependencies,
+      },
+      null,
+      2
+    )
+  );
+  execSync("npm install", { stdio: "inherit" });
 
   console.log(`${green("✓")} Created db package with Drizzle + Neon`);
 }
