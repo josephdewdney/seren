@@ -296,6 +296,10 @@ serve({ fetch: app.fetch, port: 3000 }, (info) => {
 }
 
 async function addPackage(name: string) {
+  if (name === "db") {
+    await addDbPackage();
+    return;
+  }
   const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
   const scope = rootPkg.name;
   const dir = `packages/${name}`;
@@ -339,6 +343,84 @@ async function addPackage(name: string) {
   );
 
   console.log(`${green("✓")} Created package: ${name}`);
+}
+
+async function addDbPackage() {
+  const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
+  const scope = rootPkg.name;
+  const dir = "packages/db";
+
+  await mkdir(`${dir}/src`, { recursive: true });
+
+  await writeFile(
+    `${dir}/package.json`,
+    JSON.stringify(
+      {
+        name: `@${scope}/db`,
+        private: true,
+        exports: {
+          ".": "./src/index.ts",
+        },
+        devDependencies: {
+          [`@${scope}/tsconfig`]: "*",
+        },
+      },
+      null,
+      2
+    )
+  );
+
+  // Step 1 - Install @neondatabase/serverless package
+  execSync("npm i drizzle-orm @neondatabase/serverless dotenv", { cwd: dir, stdio: "inherit" });
+  execSync("npm i -D drizzle-kit tsx", { cwd: dir, stdio: "inherit" });
+
+  // Step 2 - Setup connection variables
+  await writeFile(`${dir}/.env`, `DATABASE_URL=\n`);
+
+  // Step 3 - Connect Drizzle ORM to the database
+  await writeFile(
+    `${dir}/src/index.ts`,
+    `import "dotenv/config";
+import { drizzle } from "drizzle-orm/neon-http";
+
+export const db = drizzle(process.env["DATABASE_URL"]!);
+`
+  );
+
+  // Step 4 - Create a table
+  await writeFile(`${dir}/src/schema.ts`, ``);
+
+  // Step 5 - Setup Drizzle config file
+  await writeFile(
+    `${dir}/drizzle.config.ts`,
+    `import "dotenv/config";
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  out: "./drizzle",
+  schema: "./src/schema.ts",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env["DATABASE_URL"]!,
+  },
+});
+`
+  );
+
+  // tsconfig.json
+  await writeFile(
+    `${dir}/tsconfig.json`,
+    JSON.stringify(
+      {
+        extends: `@${scope}/tsconfig/base`,
+        include: ["src", "drizzle.config.ts"],
+      },
+      null,
+      2
+    )
+  );
+
+  console.log(`${green("✓")} Created db package with Drizzle + Neon`);
 }
 
 async function init(name: string) {
