@@ -382,7 +382,26 @@ export const db = drizzle(process.env["DATABASE_URL"]!);
 `
   );
 
-  // Step 4 - Create a table
+  // Step 4 - Create composable columns
+  await writeFile(
+    `${dir}/src/columns.ts`,
+    `import { integer, timestamp } from "drizzle-orm/pg-core";
+
+export const id = {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+};
+
+export const timestamps = {
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdateFn(() => new Date()),
+};
+`
+  );
+
+  // Step 5 - Create a table
   await writeFile(`${dir}/src/schema.ts`, ``);
 
   // Step 5 - Setup Drizzle config file
