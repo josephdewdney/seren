@@ -56,6 +56,7 @@ Commands:
   init [dir]                      Create a new monorepo (defaults to current directory)
   add app <name> --framework <f>  Add an app (react or hono)
   add package <name>              Add a shared package (use "db" for Drizzle + Neon)
+  add auth                        Add Better Auth to a Hono app
 
 Frameworks:
   react    Vite + React + TypeScript
@@ -74,6 +75,7 @@ Examples:
   seren add app api --framework hono
   seren add package utils
   seren add package db
+  seren add auth
 `.trim();
 
 if (command === "--help" || command === "-h" || !command) {
@@ -112,6 +114,8 @@ if (command === "--help" || command === "-h" || !command) {
   } else {
     await addPackage(name);
   }
+} else if (command === "add" && subcommand === "auth") {
+  await addAuth();
 } else {
   console.log(`Unknown command: ${command}\n`);
   console.log(HELP);
@@ -455,6 +459,190 @@ export default defineConfig({
   execSync("npm install", { stdio: "inherit" });
 
   console.log(`${green("✓")} Created db package with Drizzle + Neon`);
+}
+
+async function addAuth() {
+  // Check prerequisites
+  if (!existsSync("packages/db")) {
+    console.log(`${red("✗")} packages/db not found. Run 'seren add package db' first.`);
+    process.exit(1);
+  }
+
+  // Find Hono apps
+  const apps = existsSync("apps") ? readdirSync("apps") : [];
+  const honoApps: string[] = [];
+  for (const app of apps) {
+    const pkgPath = `apps/${app}/package.json`;
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+      if (pkg.dependencies?.hono) {
+        honoApps.push(app);
+      }
+    }
+  }
+
+  if (honoApps.length === 0) {
+    console.log(`${red("✗")} No Hono app found. Run 'seren add app <name> --framework hono' first.`);
+    process.exit(1);
+  }
+
+  let appName = honoApps[0]!;
+  if (honoApps.length > 1) {
+    appName = await prompt("Select a Hono app:", honoApps);
+  }
+
+  const rootPkg = JSON.parse(await readFile("package.json", "utf-8"));
+  const scope = rootPkg.name;
+
+  // Append auth tables to schema.ts
+  const schemaPath = "packages/db/src/schema.ts";
+  const existingSchema = await readFile(schemaPath, "utf-8");
+  await writeFile(
+    schemaPath,
+    `import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { timestamps } from "./columns";
+${existingSchema}
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  ...timestamps,
+});
+
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  ...timestamps,
+});
+
+export const account = pgTable("account", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  scope: text("scope"),
+  idToken: text("id_token"),
+  password: text("password"),
+  ...timestamps,
+});
+
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ...timestamps,
+});
+`
+  );
+
+  // Create auth.ts in db package
+  await writeFile(
+    "packages/db/src/auth.ts",
+    `import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { db } from "./index";
+import * as schema from "./schema";
+
+export const auth = betterAuth({
+  database: drizzleAdapter(db, {
+    provider: "pg",
+    schema,
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+});
+`
+  );
+
+  // Update db package.json
+  const dbPkgPath = "packages/db/package.json";
+  const dbPkg = JSON.parse(await readFile(dbPkgPath, "utf-8"));
+  dbPkg.dependencies["better-auth"] = "^1";
+  dbPkg.exports["./auth"] = "./src/auth.ts";
+  await writeFile(dbPkgPath, JSON.stringify(dbPkg, null, 2));
+
+  // Append env vars to .env
+  const envPath = "packages/db/.env";
+  const envContent = await readFile(envPath, "utf-8");
+  if (!envContent.includes("BETTER_AUTH_SECRET")) {
+    await writeFile(envPath, envContent + `BETTER_AUTH_SECRET=\nBETTER_AUTH_URL=http://localhost:3000\n`);
+  }
+
+  // Update Hono app
+  await writeFile(
+    `apps/${appName}/src/index.ts`,
+    `import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { auth } from "@${scope}/db/auth";
+
+const app = new Hono<{
+  Variables: {
+    user: typeof auth.$Infer.Session.user | null;
+    session: typeof auth.$Infer.Session.session | null;
+  };
+}>();
+
+app.use(
+  "/api/auth/*",
+  cors({
+    origin: "http://localhost:5173",
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: true,
+  })
+);
+
+app.use("*", async (c, next) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) {
+    c.set("user", null);
+    c.set("session", null);
+    return next();
+  }
+  c.set("user", session.user);
+  c.set("session", session.session);
+  return next();
+});
+
+app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+app.get("/", (c) => c.text("Hello from ${appName}!"));
+
+serve({ fetch: app.fetch, port: 3000 }, (info) => {
+  console.log(\`Server running at http://localhost:\${info.port}\`);
+});
+`
+  );
+
+  // Add db dependency to hono app
+  const appPkgPath = `apps/${appName}/package.json`;
+  const appPkg = JSON.parse(await readFile(appPkgPath, "utf-8"));
+  appPkg.dependencies[`@${scope}/db`] = "*";
+  await writeFile(appPkgPath, JSON.stringify(appPkg, null, 2));
+
+  execSync("npm install", { stdio: "inherit" });
+
+  console.log(`${green("✓")} Added auth to ${appName}`);
+  console.log();
+  console.log("Next steps:");
+  console.log("  cd packages/db");
+  console.log("  npx drizzle-kit generate");
+  console.log("  npx drizzle-kit migrate");
 }
 
 async function init(name: string) {
